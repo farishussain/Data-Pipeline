@@ -1,0 +1,14 @@
+// .devcontainer/devcontainer.json
+{
+    "name": "BayWa Data Pipeline",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."
+    },
+    "workspaceFolder": "/workspaces/baywa-data-pipeline",
+    "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter"
+    ],
+    "forwardPorts": [8888]
+}
