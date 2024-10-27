@@ -1,10 +1,17 @@
-# BayWa Data Pipeline Project
+# BayWa Data Pipeline
 
 ## Overview
-This project provides a data pipeline to ingest data from the Energy-Charts API, transform it, and store it in Delta Tables for further analysis. It also includes data quality checks and example queries for common BI and ML use cases.
+This project implements a data pipeline for ingesting renewable energy data from the Energy-Charts API.
 
-### Getting Started
-1. **Clone the Repository**:
-   ```shell
-   git clone https://github.com/yourusername/baywa-data-pipeline.git
-   cd baywa-data-pipeline
+## Folder Structure
+- **notebooks/**: Contains Jupyter Notebook for pipeline demonstration.
+- **scripts/**: Contains Python scripts for data ingestion and data quality checks.
+- **data/**: Stores sample data from the API.
+- **.devcontainer/**: Contains Docker setup for development in VS Code.
+
+## Setup Instructions
+1. Clone the repository.
+2. Open the project in Visual Studio Code.
+3. Install the required packages:
+   ```bash
+   pip install -r requirements.txt

@@ -1,20 +1,17 @@
-# data_quality_checks.py
-from pyspark.sql import SparkSession
+import requests
+import pandas as pd
+from config import Config
 
-# Initialize Spark
-spark = SparkSession.builder.appName("DataQualityChecks").getOrCreate()
+def fetch_data(api_url, params):
+    response = requests.get(api_url, params=params)
+    response.raise_for_status()
+    return response.json()
 
-# Load data for quality checks
-power_data = spark.read.format("delta").load("data/delta_tables/power_data")
+def ingest_power_data(config):
+    power_data = fetch_data(config.api_urls["power_data"], {"start": config.start_date, "end": config.end_date})
+    df = pd.DataFrame(power_data)
+    df.to_csv('data/sample_data/power_data.csv', index=False)
 
-# Simple quality checks
-def check_nulls(df, column_name):
-    null_count = df.filter(df[column_name].isNull()).count()
-    print(f"Null count for {column_name}: {null_count}")
-
-def check_value_range(df, column_name, min_val, max_val):
-    out_of_range = df.filter((df[column_name] < min_val) | (df[column_name] > max_val)).count()
-    print(f"Out of range values for {column_name}: {out_of_range}")
-
-check_nulls(power_data, "net_production")
-check_value_range(power_data, "net_production", 0, 5000)  # Example range
+if __name__ == "__main__":
+    config = Config()
+    ingest_power_data(config)

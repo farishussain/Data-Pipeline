@@ -1,14 +1,15 @@
-// .devcontainer/devcontainer.json
 {
-    "name": "BayWa Data Pipeline",
-    "build": {
-        "dockerfile": "Dockerfile",
-        "context": ".."
+    "name": "PySpark with Delta Lake",
+    "dockerFile": "Dockerfile",
+    "context": "..",
+    "settings": {
+        "python.pythonPath": "/usr/local/bin/python",
+        "python.linting.enabled": true
     },
-    "workspaceFolder": "/workspaces/baywa-data-pipeline",
     "extensions": [
         "ms-python.python",
         "ms-toolsai.jupyter"
     ],
-    "forwardPorts": [8888]
+    "postCreateCommand": "pip install -r requirements.txt",
+    "remoteUser": "root"
 }
