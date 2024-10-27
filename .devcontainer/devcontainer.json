@@ -1,15 +1,14 @@
 {
-    "name": "PySpark with Delta Lake",
-    "dockerFile": "Dockerfile",
-    "context": "..",
+    "name": "Spark Development",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "."
+    },
     "settings": {
-        "python.pythonPath": "/usr/local/bin/python",
-        "python.linting.enabled": true
+        "python.pythonPath": "/usr/bin/python3"
     },
     "extensions": [
         "ms-python.python",
         "ms-toolsai.jupyter"
-    ],
-    "postCreateCommand": "pip install -r requirements.txt",
-    "remoteUser": "root"
+    ]
 }
