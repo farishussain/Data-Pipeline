@@ -1,9 +1,11 @@
-import requests
-import datetime
+# ingest_data.py
 import os
+import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from delta import DeltaTable
+from config import Config
+from data_quality_checks import fetch_data, validate_data
 
 # Initialize Spark session with Delta support
 spark = SparkSession.builder \
@@ -13,205 +15,63 @@ spark = SparkSession.builder \
     .config("spark.jars.packages", "io.delta:delta-core_2.12:2.4.0") \
     .getOrCreate()
 
-API_BASE_URL = "https://api.energy-charts.info"
-ENDPOINTS = {
-    "public_power": "/public_power",
-    "price": "/price",  
-    "installed_power": "/installed_power"  
-}
-
-STAGING_PATH = "/workspaces/baywa-data-pipeline/data"  # Staging directory for raw data
-
-def fetch_data(endpoint, start_date=None, end_date=None):
+def save_data_to_staging(df, path, merge_columns):
     """
-    Fetch data from the Energy-Charts API for the specified date range and endpoint.
+    Saves the given DataFrame to the specified Delta table path, merging on specified columns.
     """
-    url = f"{API_BASE_URL}{ENDPOINTS[endpoint]}"
-    params = {
-        "start_date": start_date,
-        "end_date": end_date
-    }
-    
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        
-        json_data = response.json()
-        return json_data
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching data: {e}")
-        return None
-
-def save_price_data_to_staging(data, endpoint):
-    """
-    Save the price data to a staging area in Delta format.
-    """
-    if data:
-        timestamps = data['unix_seconds']
-        prices = data['price']
-        unit = data['unit']
-
-        datetime_index = [datetime.datetime.fromtimestamp(ts) for ts in timestamps]
-        rows = [{"timestamp": ts, "price": price, "unit": unit} for ts, price in zip(datetime_index, prices)]
-
-        df = spark.createDataFrame(rows)
-        staging_path = os.path.join(STAGING_PATH, endpoint)
-        ensure_delta_path_exists(staging_path)
-        
-        if DeltaTable.isDeltaTable(spark, staging_path):
-            delta_table = DeltaTable.forPath(spark, staging_path)
-            delta_table.alias("target").merge(
-                df.alias("source"),
-                "target.timestamp = source.timestamp"
-            ).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute()
-        else:
-            df.write.format("delta").mode("overwrite").save(staging_path)
-        
-        print(f"Price data saved to staging at {staging_path}.")
+    if DeltaTable.isDeltaTable(spark, path):
+        delta_table = DeltaTable.forPath(spark, path)
+        delta_table.alias("target").merge(
+            df.alias("source"),
+            " AND ".join([f"target.{col} = source.{col}" for col in merge_columns])
+        ).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute()
     else:
-        print("No data to save.")
+        df.write.format("delta").mode("overwrite").save(path)
+    print(f"Data saved to staging at {path}.")
 
-def save_public_power_data_to_staging(data, endpoint):
+def ingest_data(config, endpoint):
     """
-    Save the public power data to a staging area in Delta format.
+    Ingests data from the specified endpoint and saves it to a Delta table in the staging area.
     """
-    if data:
-        timestamps = data['unix_seconds']
-        production_types = data['production_types']
+    api_url = config.api_urls[endpoint]
+    params = {"start_date": config.start_date, "end_date": config.end_date}
+    data = fetch_data(api_url, params)
 
-        # Convert timestamps to datetime and prepare a DataFrame
-        datetime_index = [datetime.datetime.fromtimestamp(ts) for ts in timestamps]
-        rows = []
-        for production in production_types:
-            name = production['name']
-            values = production['data']
-            for timestamp, value in zip(datetime_index, values):
-                rows.append({"timestamp": timestamp, "value": value, "production_type": name})
+    if data and validate_data(data, endpoint):
+        if endpoint == "price":
+            timestamps = data['unix_seconds']
+            rows = [{"timestamp": datetime.datetime.fromtimestamp(ts), "price": price, "unit": data['unit']}
+                    for ts, price in zip(timestamps, data['price'])]
+            df = spark.createDataFrame(rows)
+            save_data_to_staging(df, os.path.join(config.staging_path, endpoint), ["timestamp"])
 
-        df = spark.createDataFrame(rows)
-        staging_path = os.path.join(STAGING_PATH, endpoint)
-        ensure_delta_path_exists(staging_path)
-        
-        if DeltaTable.isDeltaTable(spark, staging_path):
-            delta_table = DeltaTable.forPath(spark, staging_path)
-            delta_table.alias("target").merge(
-                df.alias("source"),
-                "target.timestamp = source.timestamp AND target.production_type = source.production_type"
-            ).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute()
-        else:
-            df.write.format("delta").mode("overwrite").save(staging_path)
-        
-        print(f"Public power data saved to staging at {staging_path}.")
+        elif endpoint == "public_power":
+            timestamps = data['unix_seconds']
+            rows = [
+                {"timestamp": datetime.datetime.fromtimestamp(ts), "value": value, "production_type": production['name']}
+                for ts in timestamps
+                for production in data['production_types']
+                for value in production['data']
+            ]
+            df = spark.createDataFrame(rows)
+            save_data_to_staging(df, os.path.join(config.staging_path, endpoint), ["timestamp", "production_type"])
+
+        elif endpoint == "installed_power":
+            years = data['time']
+            rows = [
+                {"year": int(year), "installed_power": value, "production_type": production['name']}
+                for year in years
+                for production in data['production_types']
+                for value in production['data']
+            ]
+            df = spark.createDataFrame(rows)
+            save_data_to_staging(df, os.path.join(config.staging_path, endpoint), ["year", "production_type"])
     else:
-        print("No data to save.")
-
-def save_installed_power_data_to_staging(data, endpoint):
-    """
-    Save the installed power data to a staging area in Delta format.
-    """
-    if data:
-        years = data['time']
-        production_types = data['production_types']
-
-        rows = []
-        for production in production_types:
-            name = production['name']
-            values = production['data']
-            for year, value in zip(years, values):
-                rows.append({"year": int(year), "installed_power": value, "production_type": name})
-
-        df = spark.createDataFrame(rows)
-        staging_path = os.path.join(STAGING_PATH, endpoint)
-        ensure_delta_path_exists(staging_path)
-        
-        if DeltaTable.isDeltaTable(spark, staging_path):
-            delta_table = DeltaTable.forPath(spark, staging_path)
-            delta_table.alias("target").merge(
-                df.alias("source"),
-                "target.year = source.year AND target.production_type = source.production_type"
-            ).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute()
-        else:
-            df.write.format("delta").mode("overwrite").save(staging_path)
-        
-        print(f"Installed power data saved to staging at {staging_path}.")
-    else:
-        print("No data to save.")
-
-def ensure_delta_path_exists(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-        print(f"Created directory: {path}")
-    else:
-        print(f"Directory already exists: {path}")
-
-def validate_data(data, data_type):
-    if not data:
-        print("Data validation failed: No data returned from API.")
-        return False
-
-    required_keys = {
-        "price": ["unix_seconds", "price"],
-        "public_power": ["unix_seconds", "production_types"],
-        "installed_power": ["time", "production_types"]
-    }
-
-    for key in required_keys[data_type]:
-        if key not in data:
-            print(f"Data validation failed: Expected key '{key}' not found in response.")
-            return False
-
-    print("Data validation passed.")
-    return True
-
-def prepare_date_range(frequency, custom_start=None, custom_end=None):
-    today = datetime.date.today()
-    if custom_start and custom_end:
-        start_date = custom_start
-        end_date = custom_end
-    elif frequency == "daily":
-        start_date = today
-        end_date = today
-    elif frequency == "weekly":
-        start_date = today - datetime.timedelta(days=7)
-        end_date = today
-    elif frequency == "monthly":
-        start_date = today - datetime.timedelta(days=30)
-        end_date = today
-    else:
-        raise ValueError("Unsupported frequency. Use 'daily' or 'monthly'.")
-    
-    return start_date.isoformat() + "T00:00Z", end_date.isoformat() + "T23:59Z"
-
-def ingest_data(frequency, endpoint):
-    start_date, end_date = prepare_date_range(frequency)
-
-    # Fetch data
-    data = fetch_data(endpoint, start_date, end_date)
-    
-    if endpoint == "price":
-        if validate_data(data, "price"):
-            save_price_data_to_staging(data, endpoint)
-    elif endpoint == "public_power":
-        if validate_data(data, "public_power"):
-            save_public_power_data_to_staging(data, endpoint)
-    elif endpoint == "installed_power":
-        if validate_data(data, "installed_power"):
-            save_installed_power_data_to_staging(data, endpoint)
-    else:
-        print(f"Endpoint '{endpoint}' is not recognized.")
-
-def main():
-    frequency = os.getenv("INGESTION_FREQUENCY", "daily")
-    
-    # Ingest public power data
-    ingest_data(frequency, "public_power")
-    
-    # Ingest price data (adjust frequency as needed)
-    ingest_data(frequency, "price")
-    
-    # Ingest installed power data (adjust frequency as needed)
-    ingest_data("monthly", "installed_power")
+        print(f"No valid data to save for {endpoint}.")
 
 if __name__ == "__main__":
-    main()
+    config = Config()
+    endpoints = ["public_power", "price", "installed_power"]
+    
+    for endpoint in endpoints:
+        ingest_data(config, endpoint)
