@@ -16,7 +16,11 @@ spark = SparkSession.builder \
 
 def ingest_public_power(config):
     api_url = config.api_urls['public_power']
-    params = {"country": config.country , "start": config.start_date, "end": config.end_date}
+    params = {
+        "country": config.country , 
+        "start": config.start_date, 
+        "end": config.end_date
+        }
     data = fetch_data(api_url, params)
 
     if data and validate_data(data, 'public_power'):
