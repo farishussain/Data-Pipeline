@@ -26,11 +26,20 @@ def ingest_public_power(config):
     if data and validate_data(data, 'public_power'):
         timestamps = data['unix_seconds']
         rows = [
-            {"timestamp": datetime.datetime.fromtimestamp(ts), "value": value, "production_type": production['name']}
+            {
+                "timestamp": datetime.datetime.fromtimestamp(ts), 
+                "value": value, 
+                "production_type": production['name'],
+                "country": params["country"],   # Add country to each row
+                "start": params["start"],       # Add start date to each row
+                "end": params["end"]            # Add end date to each row
+            }
             for ts in timestamps
             for production in data['production_types']
             for value in production['data']
         ]
+        
+        # Create DataFrame with new columns included
         df = spark.createDataFrame(rows)
 
         # Define staging path

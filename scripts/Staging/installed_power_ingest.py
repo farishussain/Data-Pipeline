@@ -17,19 +17,28 @@ def ingest_installed_power(config):
     api_url = config.api_urls['installed_power']
     params = {
         "country": config.country,
-        "time_step": config.frequency,
-        "installation_decommission": config.decommission
+        "time_step": config.time_step,
+        "installation_decommission": config.installation_decommission
     }
     data = fetch_data(api_url, params)
 
     if data and validate_data(data, 'installed_power'):
         years = data['time']
         rows = [
-            {"year": int(year), "installed_power": value, "production_type": production['name']}
+            {
+                "year": int(year), 
+                "installed_power": value, 
+                "production_type": production['name'],
+                "country": params["country"],                  # Add country
+                "time_step": params["time_step"],              # Add time_step
+                "installation_decommission": params["installation_decommission"]  # Add installation_decommission
+            }
             for year in years
             for production in data['production_types']
             for value in production['data']
         ]
+        
+        # Create DataFrame with new columns included
         df = spark.createDataFrame(rows)
 
         # Define staging path
