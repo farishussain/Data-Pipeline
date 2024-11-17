@@ -1,4 +1,4 @@
-# BayWa r.e Data Engineering Technical Challenge
+# Data Engineering Technical Challenge
 
 ## Project Overview
 This project presents a data pipeline developed to ingest, transform, and store energy data from the Energy-Charts API. The pipeline supports various BI/ML use cases, ensures data quality, and uses Change Data Capture (CDC) for consistent data updates. Data is stored in Delta tables and processed with PySpark.
