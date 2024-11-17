@@ -16,13 +16,25 @@ spark = SparkSession.builder \
 
 def ingest_price(config):
     api_url = config.api_urls['price']
-    params = {"start_date": config.start_date, "end_date": config.end_date}
+    params = {
+        "bzn": config.bidding_zone,
+        "start": config.start_date, 
+        "end": config.end_date
+    }
     data = fetch_data(api_url, params)
 
     if data and validate_data(data, 'price'):
         timestamps = data['unix_seconds']
-        rows = [{"timestamp": datetime.datetime.fromtimestamp(ts), "price": price, "unit": data['unit']}
-                for ts, price in zip(timestamps, data['price'])]
+        rows = [{
+            "timestamp": datetime.datetime.fromtimestamp(ts),
+            "price": price,
+            "unit": data['unit'],
+            "bzn": params["bzn"],        # Add bidding zone to each row
+            "start": params["start"],     # Add start date to each row
+            "end": params["end"]          # Add end date to each row
+        } for ts, price in zip(timestamps, data['price'])]
+        
+        # Create DataFrame with new columns included
         df = spark.createDataFrame(rows)
 
         # Define staging path
