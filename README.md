@@ -85,3 +85,5 @@ The transformation scripts process data for BI/ML use cases:
 - Implement advanced data quality checks.
 - Expand monitoring for production readiness.
 - Optimize the pipeline for real-time processing if needed.
+- Taking Advantage of the Apache Spark Archtecture.
+- Implementing Data Model either (Dimensional, Data Vault 3NF)
