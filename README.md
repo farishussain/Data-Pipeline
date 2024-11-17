@@ -1,8 +1,5 @@
 # Data Engineering Technical Challenge
 
-## Project Overview
-This project presents a data pipeline developed to ingest, transform, and store energy data from the Energy-Charts API. The pipeline supports various BI/ML use cases, ensures data quality, and uses Change Data Capture (CDC) for consistent data updates. Data is stored in Delta tables and processed with PySpark.
-
 ## Table of Contents
 - [Project Overview](#project-overview)
 - [Features](#features)
@@ -17,6 +14,9 @@ This project presents a data pipeline developed to ingest, transform, and store 
   - [Example Cloud Architecture](#example-cloud-architecture)
 - [Assumptions and Decisions](#assumptions-and-decisions)
 - [Next Steps](#next-steps)
+
+## Project Overview
+This project presents a data pipeline developed to ingest, transform, and store energy data from the Energy-Charts API. The pipeline supports BI/ML use cases, ensures data quality, and uses Change Data Capture (CDC) for consistent data updates. Data is stored in Delta tables and processed with PySpark.
 
 ## Features
 - **Automated Data Ingestion**: Pipelines for public power (15-minute intervals), daily price data, and monthly installed power data.
