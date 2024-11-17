@@ -75,16 +75,6 @@ The transformation scripts process data for BI/ML use cases:
 - Transform - Daily Production Trend: Summarizes daily net electricity production by type.
 - Transform - Underperformance Prediction: Prepares data for predicting underperformance at 30-minute intervals.
 
-### Cloud Production Strategy
-To scale this pipeline in a cloud environment:
-- Storage: Use Amazon S3 or Azure Data Lake with Delta Lake integration.
-- Compute: Deploy PySpark jobs on Databricks, Amazon EMR, or a Kubernetes-based Spark cluster.
-- Orchestration: Use Apache Airflow, AWS Step Functions, or Azure Data Factory.
-- Monitoring: Integrate with tools like AWS CloudWatch, Datadog, or Spark's built-in monitoring UI.
-**Example Cloud Architecture**
-- Data Source (Energy-Charts API) → Ingestion Layer (PySpark Jobs) → Staging Layer (Delta Table in S3/Azure Blob)
-- CDC Layer (Delta Table) → Final Schema (Delta Table) → BI/ML Tools (Tableau, Power BI)
-
 ### Assumptions and Decisions
 - Local Execution: Data volume restricted to a manageable size.
 - Data Validation: Basic data checks to ensure completeness and format correctness.
