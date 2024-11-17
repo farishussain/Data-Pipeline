@@ -14,9 +14,6 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Documentation with setup instructions, pipeline details, and next steps.
 - Integration with Docker and VS Code dev containers for local development.
 
-### Fixed
-- Issue with downloading Spark binaries during container setup.
-
 ## [0.1.0] - 2024-11-10
 ### Added
 - Initial setup of the repository with a proof of concept for:
